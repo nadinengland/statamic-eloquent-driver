@@ -4,6 +4,7 @@ namespace Statamic\Eloquent\Entries;
 
 use Statamic\Contracts\Entries\Entry as EntryContract;
 use Statamic\Contracts\Entries\QueryBuilder;
+use Statamic\Eloquent\Events\TypeRetrieved;
 use Statamic\Eloquent\Jobs\UpdateCollectionEntryOrder;
 use Statamic\Eloquent\Jobs\UpdateCollectionEntryParent;
 use Statamic\Entries\EntryCollection;
@@ -33,7 +34,9 @@ class EntryRepository extends StacheRepository
             return null;
         }
 
-        return $this->substitutionsById[$item->id()] ?? $item;
+        return tap($this->substitutionsById[$item->id()] ?? $item, function ($entry) {
+            TypeRetrieved::dispatch($entry);
+        });
     }
 
     public function findByUri(string $uri, ?string $site = null): ?EntryContract
@@ -49,7 +52,9 @@ class EntryRepository extends StacheRepository
             return null;
         }
 
-        return $this->substitutionsById[$item->id()] ?? $item;
+        return tap($this->substitutionsById[$item->id()] ?? $item, function ($entry) {
+            TypeRetrieved::dispatch($entry);
+        });
     }
 
     public function findByIds($ids): EntryCollection
@@ -71,9 +76,17 @@ class EntryRepository extends StacheRepository
             ->filter()
             ->values();
 
-        $this->applySubstitutions($items);
+        $substituted = $this->applySubstitutions($items);
 
-        return EntryCollection::make($items);
+        return EntryCollection::make($substituted)->each(function ($entry) {
+            TypeRetrieved::dispatch($entry);
+        });
+    }
+
+    public function storeInCache($entry)
+    {
+        Blink::put("eloquent-entry-{$entry->id()}", $entry);
+        Blink::put("eloquent-entry-{$entry->uri()}", $entry);
     }
 
     public function save($entry)
@@ -83,8 +96,7 @@ class EntryRepository extends StacheRepository
 
         $entry->model($model->fresh());
 
-        Blink::put("eloquent-entry-{$entry->id()}", $entry);
-        Blink::put("eloquent-entry-{$entry->uri()}", $entry);
+        $this->storeInCache($entry);
     }
 
     public function delete($entry)

@@ -4,11 +4,13 @@ namespace Tests\Entries;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Mockery;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Statamic\Eloquent\Entries\Entry;
 use Statamic\Eloquent\Entries\EntryModel;
 use Statamic\Eloquent\Entries\EntryRepository;
+use Statamic\Eloquent\Events\TypeRetrieved;
 use Statamic\Entries\EntryCollection;
 use Statamic\Events\CollectionTreeSaved;
 use Statamic\Facades\Blink;
@@ -305,5 +307,85 @@ class EntryRepositoryTest extends TestCase
         ]);
 
         $this->assertEquals([$expected->id()], $actual->map->id()->all());
+    }
+
+    #[Test, Group('TypeRetrieved')]
+    public function it_fires_type_retrieved_event_entry_when_found()
+    {
+        Event::fake();
+        $collection = Collection::make('pages')->routes('{slug}')->save();
+        $expected = tap((new Entry)->collection($collection)->slug('foo'))->save();
+
+        (new EntryRepository(new Stache))->find($expected->id());
+
+        Event::assertDispatched(TypeRetrieved::class, function (TypeRetrieved $event) use ($expected) {
+            $this->assertSame($expected, $event->target);
+
+            return true;
+        });
+    }
+
+    #[Test, Group('TypeRetrieved')]
+    public function it_fires_type_retrieved_event_when_not_already_in_cache()
+    {
+        Event::fake();
+        $collection = Collection::make('pages')->routes('{slug}')->save();
+        $expected = tap((new Entry)->collection($collection)->slug('foo'))->save();
+
+        Blink::flush();
+        (new EntryRepository(new Stache))->find($expected->id());
+
+        Event::assertDispatched(TypeRetrieved::class, function (TypeRetrieved $event) use ($expected) {
+            $this->assertNotSame($expected, $event->target);
+            $this->assertEquals($expected->id(), $event->target->id());
+
+            return true;
+        });
+    }
+
+    #[Test, Group('TypeRetrieved')]
+    public function it_fires_type_retrieved_event_when_entry_found_by_ids()
+    {
+        Event::fake();
+        $collection = Collection::make('pages')->routes('{slug}')->save();
+        $expected = collect([
+            (new Entry)->collection($collection)->slug('foo'),
+            (new Entry)->collection($collection)->slug('bar'),
+            (new Entry)->collection($collection)->slug('baz'),
+        ])->each->save();
+
+        (new EntryRepository(new Stache))->findByIds($expected->map->id());
+
+        Event::assertDispatchedTimes(TypeRetrieved::class, 3);
+    }
+
+    #[Test, Group('TypeRetrieved')]
+    public function it_fires_type_retrieved_only_for_found_entries_when_finding_by_ids()
+    {
+        Event::fake();
+        $collection = Collection::make('pages')->routes('{slug}')->save();
+        $expected = tap((new Entry)->collection($collection)->slug('foo'))->save();
+
+        (new EntryRepository(new Stache))->findByIds([
+            $expected->id(),
+            'missing',
+        ]);
+
+        Event::assertDispatchedTimes(TypeRetrieved::class, 1);
+    }
+
+    #[Test, Group('TypeRetrieved')]
+    public function it_loads_from_cache_once_stored()
+    {
+        $collection = Collection::make('pages')->routes('{slug}')->save();
+        $expected = (new Entry)->id(1)->collection($collection)->slug('foo');
+
+        $builder = Mockery::mock(\Statamic\Eloquent\Entries\EntryQueryBuilder::class);
+        $builder->shouldNotReceive('where');
+
+        $repo = (new EntryRepository(new Stache));
+        $repo->storeInCache($expected);
+
+        $this->assertSame($expected, $repo->find($expected->id()));
     }
 }
