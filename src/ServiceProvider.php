@@ -233,27 +233,30 @@ class ServiceProvider extends AddonServiceProvider
         $this->registerTokens();
         $this->registerSites();
 
-        $this->registerSerializableClasses([
-            \Statamic\Eloquent\Assets\Asset::class,
-            \Statamic\Eloquent\Assets\AssetModel::class,
+        $this->registerSerializableClasses(array_filter([
+            config('statamic.eloquent-driver.assets.asset'),
+            config('statamic.eloquent-driver.assets.model'),
             \Statamic\Eloquent\Collections\Collection::class,
-            \Statamic\Eloquent\Collections\CollectionModel::class,
-            \Statamic\Eloquent\Entries\Entry::class,
-            \Statamic\Eloquent\Entries\EntryModel::class,
-            \Statamic\Eloquent\Entries\UuidEntryModel::class,
+            config('statamic.eloquent-driver.collections.model'),
+            config('statamic.eloquent-driver.entries.entry'),
+            config('statamic.eloquent-driver.entries.model'),
             \Statamic\Eloquent\Forms\Form::class,
-            \Statamic\Eloquent\Forms\FormModel::class,
+            config('statamic.eloquent-driver.forms.model'),
             \Statamic\Eloquent\Forms\Submission::class,
-            \Statamic\Eloquent\Forms\SubmissionModel::class,
+            config('statamic.eloquent-driver.form_submissions.model'),
             \Statamic\Eloquent\Globals\GlobalSet::class,
-            \Statamic\Eloquent\Globals\GlobalSetModel::class,
+            config('statamic.eloquent-driver.global_sets.model'),
             \Statamic\Eloquent\Globals\Variables::class,
-            \Statamic\Eloquent\Globals\VariablesModel::class,
+            config('statamic.eloquent-driver.global_set_variables.model'),
+            \Statamic\Eloquent\Revisions\Revision::class,
+            config('statamic.eloquent-driver.revisions.model'),
             \Statamic\Eloquent\Taxonomies\Taxonomy::class,
-            \Statamic\Eloquent\Taxonomies\TaxonomyModel::class,
+            config('statamic.eloquent-driver.taxonomies.model'),
             \Statamic\Eloquent\Taxonomies\Term::class,
-            \Statamic\Eloquent\Taxonomies\TermModel::class,
-        ]);
+            config('statamic.eloquent-driver.terms.model'),
+            \Statamic\Eloquent\Tokens\Token::class,
+            config('statamic.eloquent-driver.tokens.model'),
+        ]));
     }
 
     private function registerAddonSettings()
