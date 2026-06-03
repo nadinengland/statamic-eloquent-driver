@@ -84,7 +84,7 @@ class Entry extends FileEntry
 
                 $directOriginData = $directOrigin->data();
 
-                // remove any fields in entry data that are marked as localized but value is present, and does not match origin
+                // remove any fields in entry data that are marked as localized but value is present, and matches origin value
                 $localizedFields = [];
                 foreach ($localizedBlueprintFields as $blueprintField) {
                     if ($data->has($blueprintField)) {
